@@ -7,6 +7,7 @@ import cors from "cors"
 
 // Import routes
 import authRoutes from "./src/routes/authRoutes.js"
+import userRoutes from "./src/routes/userRoutes.js"
 
 const app = express();
 const PORT = process.env.PORT || 3000
@@ -20,6 +21,7 @@ app.use(cors({
 
 
 app.use("/api/auth", authRoutes)
+app.use("/api/user", userRoutes)
 
 
 
