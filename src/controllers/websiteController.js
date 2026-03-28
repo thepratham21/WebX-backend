@@ -1,4 +1,4 @@
-import { genrateResponse } from '../config/openRouter.js' 
+import { genrateResponse } from '../config/openRouter.js'
 import User from '../models/user.js';
 import Website from '../models/website.js';
 import { extractJson } from '../utils/extractJson.js';
@@ -164,44 +164,44 @@ export const genrateWebsite = async (req, res) => {
             return res.status(400).json({ message: "User not found" })
         }
 
-        if(user.credit < 25){
+        if (user.credit < 25) {
             return res.status(400).json({ message: "Insufficient Credits" })
         }
 
         const finalPrompt = masterPrompt.replace("USER_PROMPT", prompt)
         let raw = ''
         let parsed = null;
-        
-        for(let i = 0; i < 2 && !parsed; i++){
+
+        for (let i = 0; i < 2 && !parsed; i++) {
             raw = await genrateResponse(finalPrompt)
             parsed = await extractJson(raw)
 
-            if(!parsed){
+            if (!parsed) {
                 raw = await genrateResponse(finalPrompt + "\n\nRETURN ONLY RAW JSON")
                 parsed = await extractJson(raw)
             }
         }
 
-        if(!parsed.code){
+        if (!parsed.code) {
             console.log("AI returned invalid response", raw);
-            return res.status(400).json({message: "AI returned invalid response"})
+            return res.status(400).json({ message: "AI returned invalid response" })
         }
 
         const website = await Website.create({
             user: user._id,
             title: prompt.slice(0, 60),
             latestCode: parsed.code,
-            conversation:[
+            conversation: [
                 {
-                    role:'ai',
+                    role: 'ai',
                     content: parsed.message
                 },
 
                 {
-                    role:'user',
+                    role: 'user',
                     content: prompt
                 }
-            
+
             ]
         })
         user.credit = user.credit - 25;
@@ -211,10 +211,122 @@ export const genrateWebsite = async (req, res) => {
             websiteId: website._id,
             remainingCredit: user.credit
         })
-        
+
 
     } catch (error) {
         return res.status(500).json({ message: `Genrate wensite error : ${error}` })
+    }
+}
+
+export const getWebsiteById = async (req, res) => {
+    try {
+        const website = await Website.findOne({
+            _id: req.params.id,
+            user: req.user._id
+        })
+
+        if (!website) {
+            return res.status(404).json({ message: "Website not found" })
+        }
+
+        return res.status(200).json(website)
+    } catch (error) {
+        return res.status(500).json({ message: `Website not found : ${error}` })
+    }
+}
+
+export const changes = async (req, res) => {
+    try {
+        const { prompt } = req.body
+        if (!prompt) {
+            return res.status(400).json({ message: "Prompt is required" })
+        }
+
+        const websiteId = req.params
+        const website = await Website.findOne({
+            _id: req.params.id,
+            user: req.user._id
+        })
+
+        if (!website) {
+            return res.status(404).json({ message: "Website not found" })
+        }
+
+        const user = await User.findById(req.user._id)
+        if (!user) {
+            return res.status(400).json({ message: "User not found" })
+        }
+
+        if (user.credit < 25) {
+            return res.status(400).json({ message: "Insufficient Credits" })
+        }
+
+        const updatePrompt = `
+        
+        UPDATE THIS WEBSITE.
+
+        CURRENT CODE:
+        ${website.latestCode}
+
+        USER REQUEST:
+        ${prompt}
+
+        RETURN RAW JSON ONLY:
+        {
+            "message": "Short confirmation",
+            "code": "<UPDATED FULL HTML>"
+        
+        }
+        `
+        let raw = ''
+        let parsed = null;
+
+        for (let i = 0; i < 2 && !parsed; i++) {
+            raw = await genrateResponse(updatePrompt)
+            parsed = await extractJson(raw)
+
+            if (!parsed) {
+                raw = await genrateResponse(updatePrompt + "\n\nRETURN ONLY RAW JSON")
+                parsed = await extractJson(raw)
+            }
+        }
+
+        if (!parsed.code) {
+            console.log("AI returned invalid response", raw);
+            return res.status(400).json({ message: "AI returned invalid response" })
+        }
+
+        website.conversation.push({
+            role: 'user', content: prompt
+        }, {
+            role: 'ai', content: parsed.message
+        },
+        )
+
+        website.latestCode = parsed.code
+
+        user.credit = user.credit - 25;
+        await user.save();
+        await website.save();
+
+        return res.status(201).json({
+            message: parsed.message,
+            code: parsed.code,
+            remainingCredit: user.credit
+        })
+
+
+    } catch (error) {
+        return res.status(500).json({ message: `Genrate wensite error : ${error}` })
+    }
+}
+
+export const getAll = async (req, res) => {
+    try {
+        const websites = await Website.find({ user: req.user._id })
+        res.status(200).json(websites)
+    } catch (error) {
+        return res.status(500).json({ message: `Failed to get all websites : ${error}` })
     }
 }
 
