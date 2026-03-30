@@ -193,14 +193,16 @@ export const genrateWebsite = async (req, res) => {
             latestCode: parsed.code,
             conversation: [
                 {
+                    role: 'user',
+                    content: prompt
+                },
+                
+                {
                     role: 'ai',
                     content: parsed.message
                 },
 
-                {
-                    role: 'user',
-                    content: prompt
-                }
+                
 
             ]
         })
@@ -327,6 +329,44 @@ export const getAll = async (req, res) => {
         res.status(200).json(websites)
     } catch (error) {
         return res.status(500).json({ message: `Failed to get all websites : ${error}` })
+    }
+}
+
+export const deploy = async (req, res) => {
+    try {
+        const website = await Website.findOne({
+            _id: req.params.id,
+            user: req.user._id
+        })
+
+        if (!website) {
+            return res.status(404).json({ message: "Website not found" })
+        }
+
+        if(!website.slug){
+            website.slug = website.title.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 60)+website._id.toString().slice(-5)
+        }
+
+        website.deployed = true;
+        website.deployUrl = `${process.env.FRONTEND_URL}/site/${website.slug}`
+        await website.save()
+
+        return res.status(200).json({
+            url: website.deployUrl
+        })
+    } catch (error) {
+        return res.status(500).json({ message: `Failed to deploy website : ${error}` })
+    }
+}
+export const getBySlug = async (req, res) => {
+    try {
+        const website = await Website.findOne({ slug: req.params.slug, user: req.user._id })
+        if (!website) {
+            return res.status(404).json({ message: "Website not found" })
+        }
+        return res.status(200).json(website)
+    } catch (error) {
+        return res.status(500).json({ message: `Failed to get website by slug : ${error}` })
     }
 }
 
