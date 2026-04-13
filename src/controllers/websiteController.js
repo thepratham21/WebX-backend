@@ -196,18 +196,21 @@ export const genrateWebsite = async (req, res) => {
                     role: 'user',
                     content: prompt
                 },
-                
+
                 {
                     role: 'ai',
                     content: parsed.message
                 },
 
-                
+
 
             ]
         })
         user.credit = user.credit - 25;
-        await user.save();
+        await User.updateOne(
+            { _id: user._id },
+            { $inc: { credit: -25 } }
+        );
 
         return res.status(201).json({
             websiteId: website._id,
@@ -308,7 +311,10 @@ export const changes = async (req, res) => {
         website.latestCode = parsed.code
 
         user.credit = user.credit - 25;
-        await user.save();
+        await User.updateOne(
+            { _id: user._id },
+            { $inc: { credit: -25 } }
+        );
         await website.save();
 
         return res.status(201).json({
@@ -343,8 +349,8 @@ export const deploy = async (req, res) => {
             return res.status(404).json({ message: "Website not found" })
         }
 
-        if(!website.slug){
-            website.slug = website.title.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 60)+website._id.toString().slice(-5)
+        if (!website.slug) {
+            website.slug = website.title.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 60) + website._id.toString().slice(-5)
         }
 
         website.deployed = true;

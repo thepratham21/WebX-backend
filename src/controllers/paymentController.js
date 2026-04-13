@@ -1,5 +1,6 @@
 import razorpayInstance from "../utils/razorpay.js";
 import crypto from "crypto";
+import User from '../models/user.js';
 
 export const createOrder = async (req, res) => {
     try {
@@ -74,12 +75,14 @@ export const verifyPayment = async (req, res) => {
             return res.status(400).json({ success: false });
         }
 
-        // SUCCESS → Update user 
-        // Example:
-        // const user = await User.findById(req.user.id);
-        // user.plan = plan;
-        // user.credits += plan === "pro" ? 500 : 1000;
-        // await user.save();
+        
+        const user = await User.findById(req.user.id);
+        user.plan = plan;
+        user.credit += plan === "pro" ? 500 : 1000;
+        await User.updateOne(
+            { _id: user._id },
+            { $set: { plan: user.plan, credit: user.credit } }
+        );
 
         res.json({ success: true });
     } catch (err) {
