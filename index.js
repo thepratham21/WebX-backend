@@ -21,6 +21,10 @@ app.use(cors({
     credentials: true,
 }))
 
+app.get("/", (req, res) => {
+    res.send(" WebX API working ")
+})
+
 app.use("/api/auth", authRoutes)
 app.use("/api/user", userRoutes)
 app.use("/api/website", websiteRoutes)
